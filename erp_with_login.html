@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema ERP com Login</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f4f4f4;
+        }
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-box {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            text-align: center;
+        }
+        .login-box h2 {
+            margin-bottom: 20px;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .login-box button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .login-box button:hover {
+            background-color: #45a049;
+        }
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        #erpSystem { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- Tela de Login -->
+    <div id="loginPage" class="login-container">
+        <div class="login-box">
+            <h2>Login</h2>
+            <form id="loginForm" onsubmit="return handleLogin(event)">
+                <input type="text" id="username" placeholder="Usuário" required />
+                <input type="password" id="password" placeholder="Senha" required />
+                <button type="submit">Entrar</button>
+                <div class="error-message" id="errorMessage"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sistema ERP -->
+    <div id="erpSystem" style="display:none;">
+
+    <div class="container">
+        <header>
+            <h1>
+                <div class="logo">ERP</div>
+                Sistema de Gestão de Estoque Integrado
+            </h1>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div class="connection-status">
+                    <div class="status-indicator" id="connectionStatus"></div>
+                    <span id="connectionText">Conectando...</span>
+                </div>
+                <span id="currentTime"></span>
+            </div>
+        </header>
+
+        <div class="nav-tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+            <button class="tab" onclick="switchTab('products')">📦 Produtos</button>
+            <button class="tab" onclick="switchTab('movements')">🔄 Movimentações</button>
+            <button class="tab" onclick="switchTab('scanner')">📱 Scanner</button>
+            <button class="tab" onclick="switchTab('reports')">📈 Relatórios</button>
+        </div>
+
+        <div class="content">
+            <!-- Dashboard -->
+            <div id="dashboard" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalProducts">0</div>
+                        <div class="stat-label">Total de Produtos</div>
+                        <div class="sync-status">
+                            <div class="sync-indicator" id="productsSyncStatus"></div>
+                            <span>Sincronizado</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalStock">0</div>
+                        <div class="stat-label">Itens em Estoque</div>
+                        <div class="sync-status">
+                            <div class="sync-indicator synced"></div>
+                            <span>Atualizado</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalValue">R$ 0</div>
+                        <div class="stat-label">Valor Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="todayMovements">0</div>
+                        <div class="stat-label">Movimentações Hoje</div>
+                        <div class="sync-status">
+                            <div class="sync-indicator synced"></div>
+                            <span>Tempo real</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>📊 Produtos com Estoque Baixo</h2>
+                    <table id="lowStockTable">
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Produto</th>
+                                <th>Quantidade</th>
+                                <th>Status</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="section">
+                    <h2>📈 Últimas Movimentações</h2>
+                    <table id="recentMovements">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Produto</th>
+                                <th>Tipo</th>
+                                <th>Quantidade</th>
+                                <th>Origem</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Produtos -->
+            <div id="products" class="tab-content">
+                <div class="section">
+                    <h2>➕ Cadastrar Produto</h2>
+                    <form id="productForm" class="form-grid">
+                        <div class="form-group">
+                            <label>SKU/Código de Barras</label>
+                            <input type="text" id="sku" placeholder="Ex: 7891234567890" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" id="name" placeholder="Nome do produto" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Quantidade Inicial</label>
+                            <input type="number" id="quantity" placeholder="0" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Preço (R$)</label>
+                            <input type="number" id="price" placeholder="0.00" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Fornecedor</label>
+                            <input type="text" id="supplier" placeholder="Nome do fornecedor">
+                        </div>
+                        <div class="form-group">
+                            <label>Estoque Mínimo</label>
+                            <input type="number" id="minStock" placeholder="10" min="0">
+                        </div>
+                        <div class="form-group" style="align-self: flex-end;">
+                            <button type="submit">
+                                <span>➕</span> Cadastrar Produto
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="section">
+                    <h2>📦 Lista de Produtos</h2>
+                    <div class="search-bar">
+                        <input type="text" id="searchProduct" placeholder="Buscar por nome ou SKU..." oninput="searchProducts()">
+                        <button onclick="syncProducts()">🔄 Sincronizar</button>
+                        <button onclick="exportProducts()">📥 Exportar</button>
+                    </div>
+                    <table id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>SKU</th>
+                                <th>Nome</th>
+                                <th>Quantidade</th>
+                                <th>Preço</th>
+                                <th>Valor Total</th>
+                                <th>Fornecedor</th>
+                                <th>Status Sync</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Movimentações -->
+            <div id="movements" class="tab-content">
+                <div class="section">
+                    <h2>🔄 Registrar Movimentação</h2>
+                    <form id="movementForm" class="form-grid">
+                        <div class="form-group">
+                            <label>Produto</label>
+                            <select id="movProductId" required>
+                                <option value="">Selecione um produto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select id="movType" required>
+                                <option value="entrada">Entrada</option>
+                                <option value="saida">Saída</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Quantidade</label>
+                            <input type="number" id="movQuantity" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Responsável</label>
+                            <input type="text" id="movUser" placeholder="Nome do responsável" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Observações</label>
+                            <input type="text" id="movNotes" placeholder="Observações (opcional)">
+                        </div>
+                        <div class="form-group" style="align-self: flex-end;">
+                            <button type="submit" class="btn-success">
+                                <span>✓</span> Registrar Movimentação
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="section">
+                    <h2>📋 Histórico de Movimentações</h2>
+                    <div class="search-bar">
+                        <input type="date" id="startDate">
+                        <input type="date" id="endDate">
+                        <button onclick="filterMovements()">🔍 Filtrar</button>
+                        <button onclick="clearFilter()">❌ Limpar</button>
+                        <button onclick="syncMovements()">🔄 Sincronizar</button>
+                    </div>
+                    <table id="movementsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Data/Hora</th>
+                                <th>Produto</th>
+                                <th>Tipo</th>
+                                <th>Quantidade</th>
+                                <th>Responsável</th>
+                                <th>Origem</th>
+                                <th>Status Sync</th>
+                                <th>Observações</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Scanner -->
+            <div id="scanner" class="tab-content">
+                <div class="section">
+                    <h2>📱 Scanner de Código de Barras</h2>
+                    
+                    <div class="scanner-container">
+                        <video id="video" playsinline autoplay muted></video>
+                        
+                        <div class="scanner-controls">
+                            <label for="scanType">Tipo:</label>
+                            <select id="scanType">
+                                <option value="entrada">Entrada</option>
+                                <option value="saida">Saída</option>
+                            </select>
+                            
+                            <label for="scanQuantity">Qtd:</label>
+                            <input type="number" id="scanQuantity" value="1" min="1" style="width: 80px;">
+                            
+                            <label for="scanUser">Responsável:</label>
+                            <input type="text" id="scanUser" placeholder="Seu nome" required style="min-width: 150px;">
+                            
+                            <button id="startCamera" onclick="startCamera()">🎹 Iniciar</button>
+                            <button id="stopCamera" onclick="stopCamera()" disabled>⏹️ Parar</button>
+                        </div>
+                    </div>
+
+                    <div class="offline-entry">
+                        <h3>Entrada Manual de Código</h3>
+                        <p>Caso a câmera não funcione, digite o código manualmente:</p>
+                        <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                            <input type="text" id="manualCode" placeholder="Digite o código de barras" style="flex: 1; min-width: 200px;">
+                            <button onclick="processManualCode()" class="btn-success">Processar Código</button>
+                        </div>
+                    </div>
+
+                    <div id="scannerLog">Sistema de scanner inicializado. API Backend integrada.</div>
+                </div>
+            </div>
+
+            <!-- Relatórios -->
+            <div id="reports" class="tab-content">
+                <div class="section">
+                    <h2>📈 Relatórios e Análises</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="monthlyIn">0</div>
+                            <div class="stat-label">Entradas no Mês</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="monthlyOut">0</div>
+                            <div class="stat-label">Saídas no Mês</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="turnoverRate">0%</div>
+                            <div class="stat-label">Taxa de Giro</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="avgStockValue">R$ 0</div>
+                            <div class="stat-label">Valor Médio Estoque</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>📊 Produtos Mais Movimentados</h2>
+                    <table id="topProductsTable">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Total Movimentações</th>
+                                <th>Entradas</th>
+                                <th>Saídas</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração da API
+        const API_BASE = window.location.protocol + '//' + window.location.host + '/api';
+        
+        // Estado da aplicação
+        let products = [];
+        let movements = [];
+        let isOnline = false;
+        let offlineQueue = [];
+
+        // Scanner variables
+        let stream = null;
+        let detecting = false;
+        let lastScannedCode = null;
+        let scanTimeout = null;
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            checkConnection();
+            loadSampleData(); // Fallback se API não estiver disponível
+            updateDashboard();
+            updateClock();
+            setInterval(updateClock, 1000);
+            setInterval(checkConnection, 30000); // Verificar conexão a cada 30s
+        });
+
+        // Verificar conexão com API
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/health`, {
+                    method: 'GET',
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    setConnectionStatus(true);
+                    await processOfflineQueue();
+                    await loadDataFromAPI();
+                } else {
+                    setConnectionStatus(false);
+                }
+            } catch (error) {
+                console.log('API não disponível, funcionando offline:', error);
+                setConnectionStatus(false);
+            }
+        }
+
+        function setConnectionStatus(connected) {
+            isOnline = connected;
+            const indicator = document.getElementById('connectionStatus');
+            const text = document.getElementById('connectionText');
+            
+            if (connected) {
+                indicator.classList.add('connected');
+                text.textContent = 'Online';
+            } else {
+                indicator.classList.remove('connected');
+                text.textContent = 'Offline';
+            }
+        }
+
+        // Processar fila offline
+        async function processOfflineQueue() {
+            if (!isOnline || offlineQueue.length === 0) return;
+            
+            log('Processando fila offline...');
+            const queue = [...offlineQueue];
+            offlineQueue = [];
+            
+            for (const item of queue) {
+                try {
+                    await sendToAPI(item.endpoint, item.data);
+                    log(`✓ Sincronizado: ${item.type}`);
+                } catch (error) {
+                    log(`✗ Erro ao sincronizar ${item.type}: ${error.message}`);
+                    offlineQueue.push(item); // Recolocar na fila
+                }
+            }
+        }
+
+        // Carregar dados da API
+        async function loadDataFromAPI() {
+            try {
+                // Carregar produtos
+                const productsResponse = await fetch(`${API_BASE}/produtos`);
+                if (productsResponse.ok) {
+                    const apiProducts = await productsResponse.json();
+                    products = apiProducts.map(p => ({
+                        id: p.id,
+                        sku: p.sku,
+                        name: p.nome,
+                        quantity: p.quantidade,
+                        price: p.preco || 0,
+                        supplier: p.fornecedor || '',
+                        minStock: p.estoqueMinimo || 10,
+                        syncStatus: 'synced'
+                    }));
+                }
+
+                // Carregar movimentações
+                const movementsResponse = await fetch(`${API_BASE}/movimentacoes`);
+                if (movementsResponse.ok) {
+                    const apiMovements = await movementsResponse.json();
+                    movements = apiMovements.map(m => ({
+                        id: m.id,
+                        productId: m.produto.id,
+                        type: m.tipo.toUpperCase(),
+                        quantity: m.quantidade,
+                        user: 'Sistema',
+                        date: new Date(m.timestamp),
+                        notes: 'Carregado da API',
+                        origin: 'api',
+                        syncStatus: 'synced'
+                    }));
+                }
+
+                updateAllTables();
+                log('Dados carregados da API com sucesso');
+            } catch (error) {
+                log('Erro ao carregar dados da API: ' + error.message);
+            }
+        }
+
+        // Enviar para API
+        async function sendToAPI(endpoint, data) {
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return response.json();
+        }
+
+        // Registrar movimentação (integrado com API)
+        async function registerMovement(movementData) {
+            const apiData = {
+                sku: movementData.sku,
+                tipo: movementData.type.toLowerCase(),
+                quantidade: movementData.quantity,
+                timestamp: new Date().toISOString(),
+                device: navigator.userAgent.substring(0, 100) // Limitado para criptografia
+            };
+
+            if (isOnline) {
+                try {
+                    await sendToAPI('/movimentacao', apiData);
+                    log(`✓ Movimentação enviada para API: ${apiData.tipo} ${apiData.quantidade}x ${apiData.sku}`);
+                    return true;
+                } catch (error) {
+                    log(`✗ Erro ao enviar para API: ${error.message}`);
+                    // Adicionar à fila offline
+                    offlineQueue.push({
+                        endpoint: '/movimentacao',
+                        data: apiData,
+                        type: 'movimentacao'
+                    });
+                    return false;
+                }
+            } else {
+                // Adicionar à fila offline
+                offlineQueue.push({
+                    endpoint: '/movimentacao',
+                    data: apiData,
+                    type: 'movimentacao'
+                });
+                log(`⏳ Movimentação adicionada à fila offline: ${apiData.tipo} ${apiData.quantidade}x ${apiData.sku}`);
+                return false;
+            }
+        }
+
+        // Carregar dados de exemplo (fallback)
+        function loadSampleData() {
+            if (products.length > 0) return; // Não sobrescrever dados da API
+
+            products = [
+                { id: 1, sku: '7891234567890', name: 'Rojão Trovão Colorido', quantity: 150, price: 12.50, supplier: 'Fogos São João', minStock: 20, syncStatus: 'local' },
+                { id: 2, sku: '7891234567891', name: 'Morteiro 3 Polegadas', quantity: 45, price: 85.00, supplier: 'Pirotecnia Brasil', minStock: 10, syncStatus: 'local' },
+                { id: 3, sku: '7891234567892', name: 'Chuva de Prata', quantity: 8, price: 65.00, supplier: 'Fogos Minas', minStock: 5, syncStatus: 'local' },
+                { id: 4, sku: '7891234567893', name: 'Bomba Coração Apaixonado', quantity: 22, price: 35.00, supplier: 'Pirotecnia Brasil', minStock: 8, syncStatus: 'local' },
+                { id: 5, sku: '7891234567894', name: 'Cascata Dourada', quantity: 12, price: 45.00, supplier: 'Fogos São João', minStock: 6, syncStatus: 'local' }
+            ];
+
+            const now = new Date();
+            movements = [
+                { id: 1, productId: 1, type: 'IN', quantity: 50, user: 'João Silva', date: new Date(now - 86400000), notes: 'Estoque inicial', origin: 'manual', syncStatus: 'local' },
+                { id: 2, productId: 2, type: 'OUT', quantity: 5, user: 'Maria Santos', date: new Date(now - 43200000), notes: 'Venda casamento', origin: 'manual', syncStatus: 'local' },
+                { id: 3, productId: 3, type: 'IN', quantity: 20, user: 'Pedro Costa', date: new Date(now - 3600000), notes: 'Reposição estoque', origin: 'manual', syncStatus: 'local' }
+            ];
+
+            updateAllTables();
+            log('Dados de exemplo carregados (modo offline)');
+        }
+
+        // Atualizar relógio
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString('pt-BR');
+        }
+
+        // Trocar abas
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+
+            if (tabName === 'dashboard') updateDashboard();
+            if (tabName === 'products') updateProductsTable();
+            if (tabName === 'movements') updateMovementsTable();
+            if (tabName === 'reports') updateReports();
+            if (tabName === 'scanner') initializeScanner();
+        }
+
+        // Scanner Functions
+        function initializeScanner() {
+            log('Sistema de scanner inicializado com integração API.');
+            if (checkCameraSupport()) {
+                log('Câmera suportada. Clique em "Iniciar" para começar.');
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const scanUser = document.getElementById('scanUser').value.trim();
+                if (!scanUser) {
+                    showAlert('Por favor, preencha o campo "Responsável" antes de iniciar o scanner.', 'warning');
+                    return;
+                }
+
+                log('Iniciando câmera...');
+                
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }, 
+                    audio: false 
+                });
+                
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                await video.play();
+                
+                document.getElementById('startCamera').disabled = true;
+                document.getElementById('stopCamera').disabled = false;
+                
+                detecting = true;
+                log('Câmera iniciada. Scanner integrado com API backend.');
+                
+                startBarcodeDetection();
+                
+            } catch (err) {
+                console.error('Erro ao iniciar câmera:', err);
+                log('Erro ao acessar câmera: ' + err.message);
+                showAlert('Erro ao acessar câmera. Verifique as permissões.', 'danger');
+            }
+        }
+
+        function stopCamera() {
+            detecting = false;
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                const video = document.getElementById('video');
+                video.srcObject = null;
+                stream = null;
+            }
+
+            document.getElementById('startCamera').disabled = false;
+            document.getElementById('stopCamera').disabled = true;
+            
+            log('Câmera desligada.');
+        }
+
+        async function startBarcodeDetection() {
+            const video = document.getElementById('video');
+            
+            if ('BarcodeDetector' in window) {
+                try {
+                    const supportedFormats = await BarcodeDetector.getSupportedFormats();
+                    log('Usando BarcodeDetector nativo. Formatos: ' + supportedFormats.join(', '));
+                    
+                    const detector = new BarcodeDetector({
+                        formats: supportedFormats
+                    });
+                    
+                    const detectLoop = async () => {
+                        if (!detecting) return;
+                        
+                        try {
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d');
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            
+                            if (canvas.width > 0 && canvas.height > 0) {
+                                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                
+                                const barcodes = await detector.detect(canvas);
+                                
+                                if (barcodes && barcodes.length > 0) {
+                                    for (const barcode of barcodes) {
+                                        if (barcode.rawValue) {
+                                            handleScannedCode(barcode.rawValue);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            // Ignorar erros de detecção
+                        }
+                        
+                        if (detecting) {
+                            requestAnimationFrame(detectLoop);
+                        }
+                    };
+                    
+                    detectLoop();
+                    return;
+                } catch (err) {
+                    log('Erro com BarcodeDetector, usando entrada manual...');
+                }
+            }
+
+            log('BarcodeDetector não disponível. Use entrada manual.');
+            showAlert('Scanner automático não disponível. Use a entrada manual de código.', 'warning');
+        }
+
+        function handleScannedCode(code) {
+            if (!detecting) return;
+            
+            if (code === lastScannedCode) return;
+            
+            if (scanTimeout) {
+                clearTimeout(scanTimeout);
+            }
+            
+            lastScannedCode = code;
+            log(`Código detectado: ${code}`);
+            
+            scanTimeout = setTimeout(() => {
+                processScannedCode(code);
+                
+                setTimeout(() => {
+                    lastScannedCode = null;
+                }, 2000);
+            }, 500);
+        }
+
+        async function processScannedCode(code) {
+            const scanType = document.getElementById('scanType').value;
+            const quantity = parseInt(document.getElementById('scanQuantity').value) || 1;
+            const user = document.getElementById('scanUser').value.trim();
+            
+            if (!user) {
+                showAlert('Por favor, preencha o campo "Responsável".', 'warning');
+                return;
+            }
+            
+            log(`Processando: ${code} - Tipo: ${scanType} - Qtd: ${quantity}`);
+            
+            // Buscar produto pelo SKU
+            let product = products.find(p => p.sku === code);
+            
+            if (!product) {
+                // Tentar buscar na API se online
+                if (isOnline) {
+                    try {
+                        const response = await fetch(`${API_BASE}/produtos/sku/${code}`);
+                        if (response.ok) {
+                            const apiProduct = await response.json();
+                            product = {
+                                id: apiProduct.id,
+                                sku: apiProduct.sku,
+                                name: apiProduct.nome,
+                                quantity: apiProduct.quantidade,
+                                price: apiProduct.preco || 0,
+                                supplier: apiProduct.fornecedor || '',
+                                minStock: apiProduct.estoqueMinimo || 10,
+                                syncStatus: 'synced'
+                            };
+                            products.push(product);
+                            log(`Produto encontrado na API: ${product.name}`);
+                        }
+                    } catch (error) {
+                        log(`Erro ao buscar produto na API: ${error.message}`);
+                    }
+                }
+                
+                if (!product) {
+                    log(`Produto não encontrado: ${code}`);
+                    showAlert(`Produto não encontrado: ${code}. Cadastre o produto primeiro.`, 'warning');
+                    return;
+                }
+            }
+            
+            // Verificar estoque para saída
+            if (scanType === 'saida' && product.quantity < quantity) {
+                log(`Estoque insuficiente: ${product.name}. Disponível: ${product.quantity}, Solicitado: ${quantity}`);
+                showAlert(`Estoque insuficiente: ${product.name}. Disponível: ${product.quantity}`, 'danger');
+                return;
+            }
+            
+            // Registrar movimentação via API
+            const movementData = {
+                sku: code,
+                type: scanType.toUpperCase(),
+                quantity: quantity,
+                user: user
+            };
+
+            const apiSuccess = await registerMovement(movementData);
+            
+            // Atualizar localmente independente do sucesso da API
+            const newMovement = {
+                id: movements.length > 0 ? Math.max(...movements.map(m => m.id)) + 1 : 1,
+                productId: product.id,
+                type: scanType.toUpperCase(),
+                quantity: quantity,
+                user: user,
+                date: new Date(),
+                notes: `Scanner - Código: ${code}`,
+                origin: 'scanner',
+                syncStatus: apiSuccess ? 'synced' : 'pending'
+            };
+            
+            // Atualizar estoque local
+            if (scanType === 'entrada') {
+                product.quantity += quantity;
+                log(`Entrada: +${quantity} ${product.name}. Estoque: ${product.quantity}`);
+            } else {
+                product.quantity -= quantity;
+                log(`Saída: -${quantity} ${product.name}. Estoque: ${product.quantity}`);
+            }
+            
+            movements.push(newMovement);
+            updateAllTables();
+            
+            const typeText = scanType === 'entrada' ? 'Entrada' : 'Saída';
+            const syncText = apiSuccess ? ' (Sincronizado)' : ' (Será sincronizado)';
+            showAlert(`${typeText} registrada! ${product.name} - Qtd: ${quantity}${syncText}`, 'success');
+            
+            log(`✓ ${typeText}: ${quantity}x ${product.name}${syncText}`);
+        }
+
+        function processManualCode() {
+            const code = document.getElementById('manualCode').value.trim();
+            
+            if (!code) {
+                showAlert('Digite um código de barras válido.', 'warning');
+                return;
+            }
+            
+            const user = document.getElementById('scanUser').value.trim();
+            if (!user) {
+                showAlert('Por favor, preencha o campo "Responsável".', 'warning');
+                return;
+            }
+            
+            log(`Processando código manual: ${code}`);
+            processScannedCode(code);
+            
+            document.getElementById('manualCode').value = '';
+        }
+
+        // Dashboard
+        function updateDashboard() {
+            document.getElementById('totalProducts').textContent = products.length;
+            document.getElementById('totalStock').textContent = products.reduce((sum, p) => sum + p.quantity, 0);
+            
+            const totalValue = products.reduce((sum, p) => sum + (p.quantity * p.price), 0);
+            document.getElementById('totalValue').textContent = formatCurrency(totalValue);
+            
+            const today = new Date().toDateString();
+            const todayMovs = movements.filter(m => m.date.toDateString() === today).length;
+            document.getElementById('todayMovements').textContent = todayMovs;
+
+            updateLowStockTable();
+            updateRecentMovementsTable();
+        }
+
+        function updateLowStockTable() {
+            const lowStock = products.filter(p => p.quantity <= (p.minStock || 10));
+            const tbody = document.querySelector('#lowStockTable tbody');
+            tbody.innerHTML = '';
+            
+            if (lowStock.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #9ca3af;">Nenhum produto com estoque baixo</td></tr>';
+            } else {
+                lowStock.forEach(product => {
+                    const status = product.quantity === 0 ? 'danger' : product.quantity < 5 ? 'warning' : 'success';
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${product.sku}</td>
+                            <td>${product.name}</td>
+                            <td>${product.quantity}</td>
+                            <td><span class="badge badge-${status}">${getStatusLabel(product.quantity)}</span></td>
+                            <td><button onclick="quickRestock(${product.id})" class="btn-success" style="padding: 4px 8px; font-size: 12px;">Repor</button></td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        function updateRecentMovementsTable() {
+            const recentMovs = movements.slice(-10).reverse();
+            const tbody = document.querySelector('#recentMovements tbody');
+            tbody.innerHTML = '';
+            
+            if (recentMovs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #9ca3af;">Nenhuma movimentação registrada</td></tr>';
+            } else {
+                recentMovs.forEach(mov => {
+                    const product = products.find(p => p.id === mov.productId);
+                    const typeClass = mov.type === 'IN' || mov.type === 'entrada' ? 'success' : 'danger';
+                    const originBadge = mov.origin === 'scanner' ? 
+                        '<span class="badge badge-success">Scanner</span>' : 
+                        '<span class="badge badge-warning">Manual</span>';
+                    const syncBadge = getSyncBadge(mov.syncStatus);
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${formatDateTime(mov.date)}</td>
+                            <td>${product ? product.name : 'Produto removido'}</td>
+                            <td><span class="badge badge-${typeClass}">${mov.type === 'IN' || mov.type === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
+                            <td>${mov.quantity}</td>
+                            <td>${originBadge}</td>
+                            <td>${syncBadge}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // Produtos
+        function updateProductsTable() {
+            const tbody = document.querySelector('#productsTable tbody');
+            tbody.innerHTML = '';
+
+            if (products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #9ca3af;">Nenhum produto cadastrado</td></tr>';
+                return;
+            }
+
+            products.forEach(product => {
+                const totalValue = product.quantity * product.price;
+                const syncBadge = getSyncBadge(product.syncStatus);
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${product.id}</td>
+                        <td>${product.sku}</td>
+                        <td>${product.name}</td>
+                        <td>${product.quantity}</td>
+                        <td>${formatCurrency(product.price)}</td>
+                        <td>${formatCurrency(totalValue)}</td>
+                        <td>${product.supplier || '-'}</td>
+                        <td>${syncBadge}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button onclick="editProduct(${product.id})" style="padding: 6px 12px; font-size: 12px;">✏️ Editar</button>
+                                <button onclick="deleteProduct(${product.id})" class="btn-danger" style="padding: 6px 12px; font-size: 12px;">🗑️ Excluir</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            updateMovementSelects();
+        }
+
+        function updateMovementsTable() {
+            const tbody = document.querySelector('#movementsTable tbody');
+            tbody.innerHTML = '';
+
+            if (movements.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #9ca3af;">Nenhuma movimentação registrada</td></tr>';
+                return;
+            }
+
+            movements.slice().reverse().forEach(mov => {
+                const product = products.find(p => p.id === mov.productId);
+                const typeClass = mov.type === 'IN' || mov.type === 'entrada' ? 'success' : 'danger';
+                const originBadge = mov.origin === 'scanner' ? 
+                    '<span class="badge badge-success">Scanner</span>' : 
+                    '<span class="badge badge-warning">Manual</span>';
+                const syncBadge = getSyncBadge(mov.syncStatus);
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${mov.id}</td>
+                        <td>${formatDateTime(mov.date)}</td>
+                        <td>${product ? product.name : 'Produto removido'}</td>
+                        <td><span class="badge badge-${typeClass}">${mov.type === 'IN' || mov.type === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
+                        <td>${mov.quantity}</td>
+                        <td>${mov.user}</td>
+                        <td>${originBadge}</td>
+                        <td>${syncBadge}</td>
+                        <td>${mov.notes || '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function updateMovementSelects() {
+            const select = document.getElementById('movProductId');
+            select.innerHTML = '<option value="">Selecione um produto</option>';
+            
+            products.forEach(product => {
+                select.innerHTML += `<option value="${product.id}">${product.name} (${product.sku})</option>`;
+            });
+        }
+
+        function updateAllTables() {
+            updateProductsTable();
+            updateMovementsTable();
+            updateDashboard();
+        }
+
+        // Formulários
+        document.getElementById('productForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const newProduct = {
+                sku: document.getElementById('sku').value,
+                nome: document.getElementById('name').value,
+                quantidade: parseInt(document.getElementById('quantity').value),
+                preco: parseFloat(document.getElementById('price').value),
+                fornecedor: document.getElementById('supplier').value,
+                estoqueMinimo: parseInt(document.getElementById('minStock').value) || 10
+            };
+
+            // Verificar se SKU já existe
+            if (products.some(p => p.sku === newProduct.sku)) {
+                showAlert('SKU já existe! Use um código diferente.', 'danger');
+                return;
+            }
+
+            let apiSuccess = false;
+            let productId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
+
+            // Tentar enviar para API
+            if (isOnline) {
+                try {
+                    const response = await sendToAPI('/produtos', newProduct);
+                    if (response && response.id) {
+                        productId = response.id;
+                        apiSuccess = true;
+                        log('Produto cadastrado na API: ' + newProduct.nome);
+                    }
+                } catch (error) {
+                    log('Erro ao cadastrar na API: ' + error.message);
+                    offlineQueue.push({
+                        endpoint: '/produtos',
+                        data: newProduct,
+                        type: 'produto'
+                    });
+                }
+            } else {
+                offlineQueue.push({
+                    endpoint: '/produtos',
+                    data: newProduct,
+                    type: 'produto'
+                });
+            }
+
+            // Adicionar localmente
+            const localProduct = {
+                id: productId,
+                sku: newProduct.sku,
+                name: newProduct.nome,
+                quantity: newProduct.quantidade,
+                price: newProduct.preco,
+                supplier: newProduct.fornecedor,
+                minStock: newProduct.estoqueMinimo,
+                syncStatus: apiSuccess ? 'synced' : 'pending'
+            };
+
+            products.push(localProduct);
+            this.reset();
+            updateAllTables();
+            
+            const syncText = apiSuccess ? ' (Sincronizado)' : ' (Será sincronizado)';
+            showAlert('Produto cadastrado com sucesso!' + syncText, 'success');
+        });
+
+        document.getElementById('movementForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const productId = parseInt(document.getElementById('movProductId').value);
+            const type = document.getElementById('movType').value;
+            const quantity = parseInt(document.getElementById('movQuantity').value);
+            const product = products.find(p => p.id === productId);
+
+            if (!product) {
+                showAlert('Produto não encontrado!', 'danger');
+                return;
+            }
+
+            if (type === 'saida' && product.quantity < quantity) {
+                showAlert('Estoque insuficiente!', 'danger');
+                return;
+            }
+
+            // Registrar via API
+            const movementData = {
+                sku: product.sku,
+                type: type.toUpperCase(),
+                quantity: quantity,
+                user: document.getElementById('movUser').value
+            };
+
+            const apiSuccess = await registerMovement(movementData);
+
+            // Registrar localmente
+            const newMovement = {
+                id: movements.length > 0 ? Math.max(...movements.map(m => m.id)) + 1 : 1,
+                productId: productId,
+                type: type.toUpperCase(),
+                quantity: quantity,
+                user: document.getElementById('movUser').value,
+                date: new Date(),
+                notes: document.getElementById('movNotes').value,
+                origin: 'manual',
+                syncStatus: apiSuccess ? 'synced' : 'pending'
+            };
+
+            // Atualizar estoque
+            if (type === 'entrada') {
+                product.quantity += quantity;
+            } else {
+                product.quantity -= quantity;
+            }
+
+            movements.push(newMovement);
+            this.reset();
+            updateAllTables();
+            
+            const syncText = apiSuccess ? ' (Sincronizado)' : ' (Será sincronizado)';
+            showAlert('Movimentação registrada com sucesso!' + syncText, 'success');
+        });
+
+        // Funções auxiliares
+        function getSyncBadge(status) {
+            switch(status) {
+                case 'synced':
+                    return '<span class="badge badge-success">✓ Sync</span>';
+                case 'pending':
+                    return '<span class="badge badge-warning">⏳ Pendente</span>';
+                case 'error':
+                    return '<span class="badge badge-danger">✗ Erro</span>';
+                case 'local':
+                    return '<span class="badge badge-warning">📱 Local</span>';
+                default:
+                    return '<span class="badge badge-warning">?</span>';
+            }
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value);
+        }
+
+        function formatDateTime(date) {
+            return new Intl.DateTimeFormat('pt-BR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+        }
+
+        function getStatusLabel(quantity) {
+            if (quantity === 0) return 'Sem Estoque';
+            if (quantity < 5) return 'Estoque Crítico';
+            if (quantity < 10) return 'Estoque Baixo';
+            return 'OK';
+        }
+
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = `
+                <span>${type === 'success' ? '✓' : type === 'warning' ? '⚠️' : '❌'}</span>
+                ${message}
+            `;
+            
+            document.querySelector('.content').insertBefore(alertDiv, document.querySelector('.content').firstChild);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        function log(...args) {
+            const logEl = document.getElementById('scannerLog');
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const message = `[${timestamp}] ${args.join(' ')}\n`;
+            logEl.textContent = message + logEl.textContent;
+            
+            const lines = logEl.textContent.split('\n');
+            if (lines.length > 50) {
+                logEl.textContent = lines.slice(0, 50).join('\n');
+            }
+        }
+
+        function checkCameraSupport() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                log('Câmera não suportada neste dispositivo/navegador.');
+                showAlert('Câmera não suportada. Use a entrada manual de código.', 'warning');
+                return false;
+            }
+            return true;
+        }
+
+        // Funções de sincronização
+        async function syncProducts() {
+            if (!isOnline) {
+                showAlert('Sistema offline. Conecte-se à internet para sincronizar.', 'warning');
+                return;
+            }
+
+            try {
+                showAlert('Sincronizando produtos...', 'warning');
+                await loadDataFromAPI();
+                showAlert('Produtos sincronizados com sucesso!', 'success');
+            } catch (error) {
+                showAlert('Erro ao sincronizar produtos: ' + error.message, 'danger');
+            }
+        }
+
+        async function syncMovements() {
+            if (!isOnline) {
+                showAlert('Sistema offline. Conecte-se à internet para sincronizar.', 'warning');
+                return;
+            }
+
+            try {
+                showAlert('Sincronizando movimentações...', 'warning');
+                await processOfflineQueue();
+                await loadDataFromAPI();
+                showAlert('Movimentações sincronizadas com sucesso!', 'success');
+            } catch (error) {
+                showAlert('Erro ao sincronizar movimentações: ' + error.message, 'danger');
+            }
+        }
+
+        function quickRestock(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+
+            const quantity = prompt(`Quantidade para reposição de ${product.name}:`, product.minStock);
+            if (quantity && !isNaN(quantity) && quantity > 0) {
+                const movementData = {
+                    sku: product.sku,
+                    type: 'ENTRADA',
+                    quantity: parseInt(quantity),
+                    user: 'Sistema'
+                };
+
+                registerMovement(movementData);
+                
+                const newMovement = {
+                    id: movements.length > 0 ? Math.max(...movements.map(m => m.id)) + 1 : 1,
+                    productId: product.id,
+                    type: 'ENTRADA',
+                    quantity: parseInt(quantity),
+                    user: 'Sistema',
+                    date: new Date(),
+                    notes: 'Reposição rápida',
+                    origin: 'manual',
+                    syncStatus: isOnline ? 'synced' : 'pending'
+                };
+
+                product.quantity += parseInt(quantity);
+                movements.push(newMovement);
+                updateAllTables();
+                
+                showAlert(`Reposição registrada: +${quantity} ${product.name}`, 'success');
+            }
+        }
+
+        function searchProducts() {
+            const search = document.getElementById('searchProduct').value.toLowerCase();
+            const rows = document.querySelectorAll('#productsTable tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        }
+
+        // Filtros de movimentação
+        function filterMovements() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                showAlert('Selecione as datas de início e fim', 'warning');
+                return;
+            }
+
+            const filteredMovements = movements.filter(mov => {
+                const movDate = mov.date.toISOString().split('T')[0];
+                return movDate >= startDate && movDate <= endDate;
+            });
+
+            updateMovementsTableWithData(filteredMovements);
+        }
+
+        function clearFilter() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            updateMovementsTable();
+        }
+
+        function updateMovementsTableWithData(data) {
+            const tbody = document.querySelector('#movementsTable tbody');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #9ca3af;">Nenhuma movimentação encontrada</td></tr>';
+                return;
+            }
+
+            data.slice().reverse().forEach(mov => {
+                const product = products.find(p => p.id === mov.productId);
+                const typeClass = mov.type === 'IN' || mov.type === 'entrada' ? 'success' : 'danger';
+                const originBadge = mov.origin === 'scanner' ? 
+                    '<span class="badge badge-success">Scanner</span>' : 
+                    '<span class="badge badge-warning">Manual</span>';
+                const syncBadge = getSyncBadge(mov.syncStatus);
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${mov.id}</td>
+                        <td>${formatDateTime(mov.date)}</td>
+                        <td>${product ? product.name : 'Produto removido'}</td>
+                        <td><span class="badge badge-${typeClass}">${mov.type === 'IN' || mov.type === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
+                        <td>${mov.quantity}</td>
+                        <td>${mov.user}</td>
+                        <td>${originBadge}</td>
+                        <td>${syncBadge}</td>
+                        <td>${mov.notes || '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Relatórios
+        function updateReports() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+
+            const monthlyMovements = movements.filter(m => 
+                m.date.getMonth() === currentMonth && m.date.getFullYear() === currentYear
+            );
+
+            const monthlyIn = monthlyMovements.filter(m => m.type === 'IN' || m.type === 'entrada')
+                .reduce((sum, m) => sum + m.quantity, 0);
+            const monthlyOut = monthlyMovements.filter(m => m.type === 'OUT' || m.type === 'saida')
+                .reduce((sum, m) => sum + m.quantity, 0);
+
+            document.getElementById('monthlyIn').textContent = monthlyIn;
+            document.getElementById('monthlyOut').textContent = monthlyOut;
+
+            const totalStock = products.reduce((sum, p) => sum + p.quantity, 0);
+            const turnover = totalStock > 0 ? ((monthlyOut / totalStock) * 100).toFixed(1) : 0;
+            document.getElementById('turnoverRate').textContent = turnover + '%';
+
+            const avgValue = products.length > 0 ? 
+                products.reduce((sum, p) => sum + (p.quantity * p.price), 0) / products.length : 0;
+            document.getElementById('avgStockValue').textContent = formatCurrency(avgValue);
+
+            updateTopProducts();
+        }
+
+        function updateTopProducts() {
+            const productMovements = {};
+            
+            movements.forEach(mov => {
+                if (!productMovements[mov.productId]) {
+                    productMovements[mov.productId] = { in: 0, out: 0, total: 0 };
+                }
+                
+                const isIn = mov.type === 'IN' || mov.type === 'entrada';
+                productMovements[mov.productId][isIn ? 'in' : 'out'] += mov.quantity;
+                productMovements[mov.productId].total += mov.quantity;
+            });
+
+            const topProducts = Object.entries(productMovements)
+                .map(([productId, stats]) => {
+                    const product = products.find(p => p.id == productId);
+                    return {
+                        product: product ? product.name : 'Produto removido',
+                        ...stats
+                    };
+                })
+                .sort((a, b) => b.total - a.total)
+                .slice(0, 10);
+
+            const tbody = document.querySelector('#topProductsTable tbody');
+            tbody.innerHTML = '';
+
+            if (topProducts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #9ca3af;">Nenhuma movimentação registrada</td></tr>';
+            } else {
+                topProducts.forEach(item => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${item.product}</td>
+                            <td>${item.total}</td>
+                            <td>${item.in}</td>
+                            <td>${item.out}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // Funções de edição e exclusão
+        function editProduct(id) {
+            const product = products.find(p => p.id === id);
+            if (!product) return;
+
+            const newName = prompt(`Editar nome do produto (${product.sku}):`, product.name);
+            if (newName && newName !== product.name) {
+                product.name = newName;
+                product.syncStatus = 'pending';
+                
+                if (isOnline) {
+                    // Adicionar à fila de sincronização
+                    offlineQueue.push({
+                        endpoint: `/produtos/${id}`,
+                        data: {
+                            sku: product.sku,
+                            nome: product.name,
+                            quantidade: product.quantity,
+                            preco: product.price,
+                            fornecedor: product.supplier,
+                            estoqueMinimo: product.minStock
+                        },
+                        type: 'produto_update'
+                    });
+                }
+                
+                updateAllTables();
+                showAlert('Produto atualizado! Será sincronizado.', 'success');
+            }
+        }
+
+        function deleteProduct(id) {
+            if (confirm('Tem certeza que deseja excluir este produto?')) {
+                const productIndex = products.findIndex(p => p.id === id);
+                if (productIndex !== -1) {
+                    const product = products[productIndex];
+                    
+                    // Remover movimentações relacionadas
+                    movements = movements.filter(m => m.productId !== id);
+                    
+                    // Remover produto
+                    products.splice(productIndex, 1);
+                    
+                    if (isOnline) {
+                        // Adicionar à fila de sincronização
+                        offlineQueue.push({
+                            endpoint: `/produtos/${id}`,
+                            data: null,
+                            type: 'produto_delete'
+                        });
+                    }
+                    
+                    updateAllTables();
+                    showAlert('Produto excluído! Será sincronizado.', 'success');
+                }
+            }
+        }
+
+        // Funções de exportação
+        function exportProducts() {
+            const csvContent = "data:text/csv;charset=utf-8," + 
+                "ID,SKU,Nome,Quantidade,Preço,Fornecedor,Estoque Mínimo,Status Sync\n" +
+                products.map(p => 
+                    `${p.id},"${p.sku}","${p.name}",${p.quantity},${p.price},"${p.supplier || ''}",${p.minStock},"${p.syncStatus}"`
+                ).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `produtos_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showAlert('Produtos exportados com sucesso!', 'success');
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (detecting) {
+                    stopCamera();
+                }
+            }
+            
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                const scannerTab = document.querySelector('.tab[onclick*="scanner"]');
+                if (scannerTab) {
+                    scannerTab.click();
+                }
+            }
+            
+            if (e.key === 'Enter' && e.target.id === 'manualCode') {
+                processManualCode();
+            }
+        });
+
+        // Cleanup quando a página é fechada
+        window.addEventListener('beforeunload', function() {
+            if (detecting) {
+                stopCamera();
+            }
+        });
+
+        // Auto-sync a cada 5 minutos se online
+        setInterval(async function() {
+            if (isOnline && offlineQueue.length > 0) {
+                log('Auto-sync: processando fila offline...');
+                await processOfflineQueue();
+            }
+        }, 300000); // 5 minutos
+
+        // Detectar quando o usuário sai/volta da aba
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && detecting) {
+                log('Aba não visível - pausando scanner');
+            } else if (!document.hidden && detecting) {
+                log('Aba visível - scanner ativo');
+            }
+        });
+
+        // Inicialização adicional
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('tab') === 'scanner') {
+                setTimeout(() => {
+                    const scannerTab = document.querySelector('.tab[onclick*="scanner"]');
+                    if (scannerTab) scannerTab.click();
+                }, 500);
+            }
+        });
+
+        // Funções para teste (desenvolvimento)
+        window.testScanner = function() {
+            const testCodes = ['7891234567890', '7891234567891', '7891234567892'];
+            const randomCode = testCodes[Math.floor(Math.random() * testCodes.length)];
+            log(`Testando com código: ${randomCode}`);
+            handleScannedCode(randomCode);
+        };
+
+        window.simulateOffline = function() {
+            setConnectionStatus(false);
+            log('Modo offline simulado');
+        };
+
+        window.simulateOnline = function() {
+            setConnectionStatus(true);
+            log('Modo online simulado');
+        };
+
+        window.showOfflineQueue = function() {
+            console.log('Fila offline:', offlineQueue);
+            log(`Itens na fila offline: ${offlineQueue.length}`);
+        };
+
+        // Adicionar endpoint de health check simulado para desenvolvimento
+        if (!window.location.href.includes('localhost') && !window.location.href.includes('127.0.0.1')) {
+            // Em produção, usar endpoint real
+        } else {
+            // Em desenvolvimento, simular API
+            log('Modo de desenvolvimento detectado - simulando API');
+            
+            // Simular delay de rede
+            const originalFetch = window.fetch;
+            window.fetch = async function(...args) {
+                await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+                
+                const url = args[0];
+                if (typeof url === 'string' && url.includes('/api/health')) {
+                    return new Response('OK', { status: 200 });
+                }
+                
+                // Simular outros endpoints conforme necessário
+                if (typeof url === 'string' && url.includes('/api/')) {
+                    // Simular resposta da API
+                    return new Response('{"message": "API simulada"}', { 
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                
+                return originalFetch.apply(this, args);
+            };
+        }
+    </script>
+
+    </div>
+
+    <script>
+        function handleLogin(event) {
+            event.preventDefault();
+            var username = document.getElementById('username').value;
+            var password = document.getElementById('password').value;
+            var errorMessage = document.getElementById('errorMessage');
+
+            if (username === "" || password === "") {
+                errorMessage.textContent = "Por favor, preencha todos os campos.";
+                return;
+            }
+
+            var hashedPassword = sha256(password);
+
+            if (username === "admin" && hashedPassword === sha256("admin123")) {
+                document.getElementById("loginPage").style.display = "none";
+                document.getElementById("erpSystem").style.display = "block";
+            } else {
+                errorMessage.textContent = "Usuário ou senha incorretos.";
+            }
+        }
+    </script>
+
+</body>
+</html>
